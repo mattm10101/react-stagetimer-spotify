@@ -20,7 +20,7 @@ const socket = io('https://api.stagetimer.io', {
 });
 
 function App() {
-  // --- Existing State ---
+  // --- State ---
   const [connected, setConnected] = useState(false);
   const [timerRunning, setTimerRunning] = useState(false);
   const [status, setStatus] = useState('DISCONNECTED');
@@ -32,15 +32,10 @@ function App() {
   const [showAllTimers, setShowAllTimers] = useState(true);
   const [isBlackoutOn, setIsBlackoutOn] = useState(false);
   const [isMessageOn, setIsMessageOn] = useState(false);
-  const [isAddTimeExpanded, setIsAddTimeExpanded] = useState(false);
-  const [isSubtractTimeExpanded, setIsSubtractTimeExpanded] = useState(false);
-  const [isAddTimersExpanded, setIsAddTimersExpanded] = useState(false);
   const [isDeleteTimersExpanded, setIsDeleteTimersExpanded] = useState(false);
-
-  // --- New Spotify State ---
   const [spotifyToken, setSpotifyToken] = useState(null);
 
-  // --- FIX: Wrap data fetching functions in useCallback ---
+  // --- Data Fetching Functions ---
   const fetchAllTimers = useCallback(async () => {
     try {
       const url = `https://api.stagetimer.io/v1/get_all_timers?room_id=55T3E3HN&api_key=087a607d0b6b88601123f9ccdba3a898`;
@@ -121,58 +116,44 @@ function App() {
     };
   }, [activeTimerId, fetchRoomDetails, fetchAllTimers, fetchCurrentTimer]);
 
-  // --- NEW: Spotify Auth useEffect ---
+  // --- Spotify Auth useEffect ---
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
 
     if (code) {
-      // Clean the URL
       window.history.replaceState({}, document.title, "/");
-
       const getToken = async () => {
         try {
           const { data, error } = await supabase.functions.invoke('spotify-auth', {
             body: { code },
           });
-
           if (error) throw error;
-
           console.log("Spotify Access Token:", data.access_token);
           setSpotifyToken(data.access_token);
-          // Here you could also store the refresh_token and expiry time if needed
         } catch (error) {
           console.error("Error fetching Spotify token:", error);
         }
       };
-
       getToken();
     }
   }, []);
 
-  // --- NEW: Spotify Login Handler ---
+  // --- Spotify Login Handler ---
   const handleSpotifyLogin = () => {
     const clientId = process.env.REACT_APP_SPOTIFY_CLIENT_ID;
     const redirectUri = process.env.REACT_APP_REDIRECT_URI;
     const scopes = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
-    
     const authUrl = `https://accounts.spotify.com/authorize?response_type=code&client_id=${clientId}&scope=${encodeURIComponent(scopes)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
-    
     window.location.href = authUrl;
   };
 
-
+  // --- App Functions ---
   async function selectTimer(timerId) {
-    if (!connected) {
-      console.error("Not connected yet!");
-      return;
-    }
+    if (!connected) return console.error("Not connected yet!");
     try {
       const index = allTimers.findIndex(timer => timer._id === timerId) + 1;
-      if (index === 0) {
-        console.error("Timer not found in the list!");
-        return;
-      }
+      if (index === 0) return console.error("Timer not found in the list!");
 
       const resetUrl = `https://api.stagetimer.io/v1/reset_timer?room_id=55T3E3HN&index=${index}&api_key=087a607d0b6b88601123f9ccdba3a898`;
       const resetResponse = await axios.get(resetUrl);
@@ -190,10 +171,7 @@ function App() {
   }
 
   async function sendCommand(endpoint) {
-    if (!connected) {
-      console.error("Not connected yet!");
-      return;
-    }
+    if (!connected) return console.error("Not connected yet!");
     try {
       const url = `https://api.stagetimer.io/v1/${endpoint}?room_id=55T3E3HN&api_key=087a607d0b6b88601123f9ccdba3a898`;
       const response = await axios.get(url);
@@ -210,68 +188,8 @@ function App() {
     }
   }
 
-  async function addTime(amount) {
-    if (!connected || !activeTimerId) {
-      console.error("Not connected or no active timer!");
-      return;
-    }
-    try {
-      const url = `https://api.stagetimer.io/v1/add_time?room_id=55T3E3HN&amount=${amount}&api_key=087a607d0b6b88601123f9ccdba3a898`;
-      const response = await axios.get(url);
-      if (response.status === 200) {
-        fetchAllTimers();
-        setIsAddTimeExpanded(false);
-      } else {
-        console.error(`Failed to add time: ${response.status} - ${response.data}`);
-      }
-    } catch (error) {
-      console.error(`HTTP Error: ${error.message}`);
-    }
-  }
-
-  async function subtractTime(amount) {
-    if (!connected || !activeTimerId) {
-      console.error("Not connected or no active timer!");
-      return;
-    }
-    try {
-      const url = `https://api.stagetimer.io/v1/subtract_time?room_id=55T3E3HN&amount=${amount}&api_key=087a607d0b6b88601123f9ccdba3a898`;
-      const response = await axios.get(url);
-      if (response.status === 200) {
-        fetchAllTimers();
-        setIsSubtractTimeExpanded(false);
-      } else {
-        console.error(`Failed to subtract time: ${response.status} - ${response.data}`);
-      }
-    } catch (error) {
-      console.error(`HTTP Error: ${error.message}`);
-    }
-  }
-
-  async function createTimer(name, minutes, seconds) {
-    if (!connected) {
-      console.error("Not connected yet!");
-      return;
-    }
-    try {
-      const url = `https://api.stagetimer.io/v1/create_timer?room_id=55T3E3HN&api_key=087a607d0b6b88601123f9ccdba3a898&name=${encodeURIComponent(name)}&minutes=${minutes}&seconds=${seconds}&type=DURATION&appearance=COUNTDOWN&trigger=MANUAL`;
-      const response = await axios.get(url);
-      if (response.status === 200) {
-        fetchAllTimers();
-        setIsAddTimersExpanded(false);
-      } else {
-        console.error(`Failed to add timer: ${response.status} - ${response.data}`);
-      }
-    } catch (error) {
-      console.error(`HTTP Error: ${error.message}`);
-    }
-  }
-
   async function deleteTimer(timerId) {
-    if (!connected) {
-      console.error("Not connected yet!");
-      return;
-    }
+    if (!connected) return console.error("Not connected yet!");
     try {
       const url = `https://api.stagetimer.io/v1/delete_timer?room_id=55T3E3HN&timer_id=${timerId}&api_key=087a607d0b6b88601123f9ccdba3a898`;
       const response = await axios.get(url);
@@ -292,10 +210,7 @@ function App() {
   }
 
   async function toggleMessage() {
-    if (!connected) {
-      console.error("Not connected yet!");
-      return;
-    }
+    if (!connected) return console.error("Not connected yet!");
     try {
       const url = `https://api.stagetimer.io/v1/show_or_hide_message?room_id=55T3E3HN&api_key=087a607d0b6b88601123f9ccdba3a898`;
       const response = await axios.get(url);
@@ -310,10 +225,7 @@ function App() {
   }
 
   async function toggleBlackout() {
-    if (!connected) {
-      console.error("Not connected yet!");
-      return;
-    }
+    if (!connected) return console.error("Not connected yet!");
     try {
       const url = `https://api.stagetimer.io/v1/toggle_blackout?room_id=55T3E3HN&api_key=087a607d0b6b88601123f9ccdba3a898`;
       const response = await axios.get(url);
@@ -366,7 +278,6 @@ function App() {
             />
             <div className="status">{status}</div>
             
-            {/* --- NEW: Spotify Login Button --- */}
             {!spotifyToken ? (
               <motion.button
                 onClick={handleSpotifyLogin}
@@ -441,53 +352,6 @@ function App() {
               </div>
               <div className="button-row">
                 <motion.button
-                  onClick={() => setIsAddTimeExpanded(prev => !prev)}
-                  className="add-time-button"
-                  whileHover={{ scale: 1.05, boxShadow: '0 0 15px #00c853' }}
-                  whileTap={{ scale: 0.95 }}
-                  animate={{ boxShadow: '0 0 10px #00c853' }}
-                  transition={{ boxShadow: { repeat: Infinity, duration: 1, repeatType: 'reverse' } }}
-                >
-                  ADD TIME
-                </motion.button>
-                {isAddTimeExpanded && (
-                  <div className="sub-menu">
-                    {/* Add Time Buttons */}
-                  </div>
-                )}
-                <motion.button
-                  onClick={() => setIsSubtractTimeExpanded(prev => !prev)}
-                  className="subtract-time-button"
-                  whileHover={{ scale: 1.05, boxShadow: '0 0 15px #ff4081' }}
-                  whileTap={{ scale: 0.95 }}
-                  animate={{ boxShadow: '0 0 10px #ff4081' }}
-                  transition={{ boxShadow: { repeat: Infinity, duration: 1, repeatType: 'reverse' } }}
-                >
-                  SUBTRACT TIME
-                </motion.button>
-                {isSubtractTimeExpanded && (
-                  <div className="sub-menu">
-                    {/* Subtract Time Buttons */}
-                  </div>
-                )}
-              </div>
-              <div className="button-row">
-                <motion.button
-                  onClick={() => setIsAddTimersExpanded(prev => !prev)}
-                  className="add-timers-button"
-                  whileHover={{ scale: 1.05, boxShadow: '0 0 15px #ff9100' }}
-                  whileTap={{ scale: 0.95 }}
-                  animate={{ boxShadow: '0 0 10px #ff9100' }}
-                  transition={{ boxShadow: { repeat: Infinity, duration: 1, repeatType: 'reverse' } }}
-                >
-                  ADD TIMERS
-                </motion.button>
-                {isAddTimersExpanded && (
-                  <div className="sub-menu">
-                    {/* Add Timers Buttons */}
-                  </div>
-                )}
-                <motion.button
                   onClick={() => setIsDeleteTimersExpanded(prev => !prev)}
                   className="delete-timers-button"
                   whileHover={{ scale: 1.05, boxShadow: '0 0 15px #d50000' }}
@@ -505,7 +369,10 @@ function App() {
                           key={timer._id}
                           onClick={() => deleteTimer(timer._id)}
                           className="sub-menu-button delete-timer-button"
-                          /* motion props */
+                          whileHover={{ scale: 1.05, boxShadow: '0 0 15px #d50000' }}
+                          whileTap={{ scale: 0.95 }}
+                          animate={{ boxShadow: '0 0 5px #d50000' }}
+                          transition={{ boxShadow: { repeat: Infinity, duration: 1, repeatType: 'reverse' } }}
                         >
                           {timer.name || 'Unnamed Timer'}
                         </motion.button>
