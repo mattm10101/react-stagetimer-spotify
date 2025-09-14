@@ -429,3 +429,28 @@ button {
     background-color: #d50000;
   }
 }
+
+/* Add these new styles to App.css */
+
+.spotify-login-button {
+  background-color: #1DB954; /* Spotify Green */
+  color: #ffffff;
+  width: 280px;
+  height: 80px;
+  border: 2px solid #ffffff;
+  text-shadow: 0 0 5px #000;
+  margin-bottom: 20px;
+}
+
+.spotify-login-button:hover {
+  border-color: #b300ff;
+}
+
+.spotify-status {
+  font-size: 20px;
+  color: #1DB954; /* Spotify Green */
+  text-shadow: 0 0 5px #1DB954;
+  font-family: 'Roboto', sans-serif;
+  margin-bottom: 20px;
+  font-weight: bold;
+}
